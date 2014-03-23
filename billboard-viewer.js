@@ -535,7 +535,7 @@ function BillBoardViewer() {
         scene.add(light);
 
 
-        texture = THREE.ImageUtils.loadTexture("../sun.png");
+        texture = THREE.ImageUtils.loadTexture("images/sun.png");
 
         material = new THREE.MeshBasicMaterial({
             map: texture,
