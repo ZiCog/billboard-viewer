@@ -26,13 +26,15 @@ function BillBoardViewer() {
         mouse = new THREE.Vector2(),
         offset = new THREE.Vector3(),
         INTERSECTED,
-        SELECTED;
+        SELECTED,
+        KPH_2_MPS = 0.277778;
 
-    function VideoPlayer() {
+    function VideoPlayer(width, height) {
         var video,
             canvas,
             context,
             texture,
+            mesh,
             playList,
             nowPlaying;
 
@@ -44,10 +46,9 @@ function BillBoardViewer() {
             //"videos/nodejs_bad_as_rock_star_tech.ogv"
         ];
 
-        function makeMesh(height, width) {
+        function makeMesh(width, height) {
             var material,
-                geometry,
-                mesh;
+                geometry;
 
             canvas = document.createElement('canvas');
 
@@ -61,6 +62,7 @@ function BillBoardViewer() {
             texture = new THREE.Texture(canvas);
             texture.minFilter = THREE.LinearFilter;
             texture.magFilter = THREE.LinearFilter;
+
             material = new THREE.MeshBasicMaterial({
                 map: texture,
                 overdraw: true,
@@ -68,20 +70,9 @@ function BillBoardViewer() {
             });
             // The geometry on which the movie will be displayed;
             // movie image will be scaled to fit these dimensions.
-            geometry = new THREE.PlaneGeometry(190, 95, 4, 4);
-            //geometry = new THREE.SphereGeometry(100, 20, 20);
+            geometry = new THREE.PlaneGeometry(width, height, 4, 4);
 
             mesh = new THREE.Mesh(geometry, material);
-            mesh.position.set(0, 0, 150);
-
-            mesh.rotation.x = Math.PI / 2;
-            mesh.rotation.y = Math.PI / 2;
-            mesh.rotation.z = 0;
-            mesh.rotation.y += 7 * Math.PI / 8;
-            mesh.position.y = -190 - 6;
-            mesh.position.x += -4;
-
-            scene.add(mesh);
         }
 
         function onEnded(e) {
@@ -106,7 +97,7 @@ function BillBoardViewer() {
             canvas.width = video.videoWidth;
         }
 
-        this.update = function videoPlayerUpdate() {
+        this.update = function () {
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
                 context.drawImage(video, 0, 0);
                 if (texture) {
@@ -115,6 +106,10 @@ function BillBoardViewer() {
             } else {
                 video.play();
             }
+        };
+
+        this.getMesh = function() {
+            return(mesh);
         };
 
         nowPlaying = 0;
@@ -133,44 +128,64 @@ function BillBoardViewer() {
         video.play();
 
         //makeMesh(video.videoHeight, video.videoWidth);
-        makeMesh(1000, 2000);
+        makeMesh(width, height);
     }
 
 
     function BillBoard() {
-        var pole,
-            cabinet,
-            videoPlayer;
+        var videoPlayer,
+            geometry,
+            material,
+            mesh,
+            group,
+            poleLength,
+            cabinetWidth,
+            cabinetHeight,
+            cabinetDepth;
 
         this.update = function () {
             videoPlayer.update();
         };
 
-        // A pole for the billboard
-        // API: THREE.CylinderGeometry(bottomRadius, topRadius, height, segmentsRadius, segmentsHeight)
-        pole = new THREE.Mesh(new THREE.CylinderGeometry(10, 20, 190, 20, 20, false), new THREE.MeshPhongMaterial({
-            color: 0x2a323e
-        }));
-        pole.overdraw = true;
-        pole.castShadow = true;
-        pole.rotation.x += Math.PI / 2;
-        pole.position.x = 10;
-        pole.position.y = -200 - 10;
-        pole.position.z = 70;
-        scene.add(pole);
+        // Billboard has many parts in a group
+        group = new THREE.Object3D();
 
-        // A Box for the video screen on the billboard
-        cabinet = new THREE.Mesh(new THREE.BoxGeometry(200, 10, 100), new THREE.MeshPhongMaterial({
-            color: 0x2a323e
-        }));
-        cabinet.overdraw = true;
-        cabinet.position.y = -200;
-        cabinet.position.z = 150;
-        cabinet.rotation.z += 3 * Math.PI / 8;
-        cabinet.castShadow = true;
-        scene.add(cabinet);
+        // The pole
+        poleLength = 8.0;
+        geometry = new THREE.CylinderGeometry(0.3, 0.5, poleLength, 20, 20, false);
+        material = new THREE.MeshPhongMaterial({color: 0x2a323e});
+        mesh = new THREE.Mesh(geometry, material);
+        mesh.overdraw = true;
+        mesh.castShadow = true;
+        mesh.position.y = poleLength / 2;  // Raise end of pole to origin 
+        group.add(mesh);
 
-        videoPlayer = new VideoPlayer();
+        // The cabinet
+        // Approximate dimensions of half a  Kampi video screen.
+        cabinetWidth = 8.7;
+        cabinetHeight = 5.0;
+        cabinetDepth = 1.0;
+        geometry = new THREE.BoxGeometry(cabinetWidth, cabinetHeight, cabinetDepth);
+        material = new THREE.MeshPhongMaterial({color: 0x2a323e});
+        mesh = new THREE.Mesh(geometry, material);
+        mesh.overdraw = true;
+        mesh.castShadow = true;
+        mesh.position.y = poleLength;                  // Raise screen to top of pole.
+        mesh.position.z = 0.5;                         // A bit in front of the pole.  
+        group.add(mesh);
+
+        // The video screen
+        videoPlayer = new VideoPlayer(cabinetWidth - 0.4, cabinetHeight - 0.4);
+        mesh = videoPlayer.getMesh();
+        mesh.position.y = poleLength;                  // Raise screen to top of pole.
+        mesh.position.z = cabinetDepth + 0.04;         // A bit in front of the cabinet.  
+        group.add(mesh);
+
+        group.rotation.x = Math.PI / 2;                // Stand the billboard up
+        group.rotation.y =  -100 * (Math.PI / 180);
+        group.position.y = -6.5;
+        group.position.z = -0.75;
+        scene.add(group);
     }
 
 
@@ -194,7 +209,7 @@ function BillBoardViewer() {
         field.position.z = 150;
         scene.add(field);
 
-
+/*
         // FIXME attaching controls should not be specific to a radar
         control = new THREE.TransformControls(camera, renderer.domElement);
         //              control.addEventListener( 'change', render );
@@ -225,31 +240,40 @@ function BillBoardViewer() {
                 break;
             }
         });
+*/
     }
 
 
     function makeVehicles() {
         var geometry,
             vehicle,
-            x,
-            xc,
-            xm;
+            canvas,
+            ctx,
+            xm,
+            length,
+            width,
+            height;
 
         // Two vehicles drag racing...
-        geometry = new THREE.BoxGeometry(80, 40, 30);
+        // Dimensions of a BMW 5 Series Saloon. (meters) 
+        length = 4.907;
+        width = 1.86;
+        height = 1.464;
+
+        geometry = new THREE.BoxGeometry(length, width, height);
         vehicle = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({
             color: 0xc8d3d1
         }));
         vehicle.material.ambient = vehicle.material.color;
-        vehicle.position.x = -2000;
-        vehicle.position.y = +40;
-        vehicle.position.z = 25;
+        vehicle.position.x = 0;
+        vehicle.position.y = 0;
+        vehicle.position.z = height / 2;
         vehicle.velocity = {
-            x: 20,
-            y: 1
+            x: 0.0 * KPH_2_MPS,
+            y: 0.0
         };
         vehicle.castShadow = true;
-        vehicle.receiveShadow = true;
+        //vehicle.receiveShadow = true;
         scene.add(vehicle);
         vehicles.push(vehicle);
 
@@ -257,44 +281,43 @@ function BillBoardViewer() {
             color: 0x613c4f
         }));
         vehicle.material.ambient = vehicle.material.color;
-        vehicle.position.x = -2000;
-        vehicle.position.y = -40;
-        vehicle.position.z = +25;
+        vehicle.position.x = 10;
+        vehicle.position.y = 0;
+        vehicle.position.z = height / 2;
         vehicle.velocity = {
-            x: 17,
-            y: 0
+            x: 0.0 * KPH_2_MPS,
+            y: 0.0
         };
         vehicle.castShadow = true;
-        vehicle.receiveShadow = true;
+        //vehicle.receiveShadow = true;
         scene.add(vehicle);
         vehicles.push(vehicle);
 
         // The "42" label.
-        x = document.createElement("canvas");
-        xc = x.getContext("2d");
-        x.width = 300;
-        x.height = 150;
-        xc.fillStyle = "#ff00aa";
-        xc.font = "100pt arial bold";
-        xc.textBaseline = "top";
-        xc.fillText("42", 10, 0);
+        canvas = document.createElement("canvas");
+        canvas.width = 600;
+        canvas.height = 110;
+
+        ctx = canvas.getContext("2d");
+        ctx.font="100px Verdana";
+        ctx.fillStyle = "#ff00aa";
+        ctx.textBaseline = "top";
+        ctx.fillText('43km/h',0,0);
+
         xm = new THREE.MeshBasicMaterial({
-            map: new THREE.Texture(x),
+            map: new THREE.Texture(canvas),
             //transparent: true     
             alphaTest: 0.9 // N.B. Used instead of transparent here to get transparent right!
         });
         xm.map.needsUpdate = true;
         xm.alphaTest = 0.9;
 
-        label = new THREE.Mesh(new THREE.PlaneGeometry(300, 150, 2, 2), xm);
-        label.position.set(0, 50, 0);
+        label = new THREE.Mesh(new THREE.PlaneGeometry(6.0, 1.0, 2, 2), xm);
+        label.position.set(0, 5, 5);
         label.doubleSided = true;
         label.updateMatrix();
         scene.add(label);
         label.lookAt(camera.position);
-        label.scale.x = 0.5;
-        label.scale.y = 0.5;
-
     }
 
 
@@ -386,23 +409,37 @@ function BillBoardViewer() {
     function makeHighway() {
         var geometry,
             road,
-            sidewalk;
+            sidewalk,
+            sidewalkHeight,
+            sidewalkWidth,
+            roadLength,
+            roadWidth,
+            laneWidth,
+            laneHeight;
 
-        // The road                
-        geometry = new THREE.BoxGeometry(6000, 200, 20);
+        // The road
+        // British Highways Agency standard lane width (meters)
+        laneWidth = 3.65;
+        roadLength = 1000;
+        roadWidth = laneWidth * 2;
+        laneHeight = 1.5;
+        sidewalkHeight = 1.0;
+        sidewalkWidth = roadWidth + 8.0; 
+        geometry = new THREE.BoxGeometry(roadLength, roadWidth, laneHeight);
         road = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({
             color: 0x758388
         }));
         road.receiveShadow = true;
+        road.position.z = - laneHeight / 2;
         scene.add(road);
 
         // The sidewalk                
-        geometry = new THREE.BoxGeometry(6000, 500, 40);
+        geometry = new THREE.BoxGeometry(roadLength, sidewalkWidth, sidewalkHeight);
         // Original colour was 0x94beb6 
         sidewalk = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({
             color: 0xf4feef6
         }));
-        sidewalk.position.z = -30;
+        sidewalk.position.z = - (sidewalkHeight + laneHeight) / 2;
         sidewalk.receiveShadow = true;
         scene.add(sidewalk);
     }
@@ -492,18 +529,18 @@ function BillBoardViewer() {
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 21000);
         camera.up.set(0, 0, 1);
         camera.lookAt(scene.position);
-        camera.position.x = -300;
-        camera.position.y = -180;
-        camera.position.z = 150;
+        camera.position.x = -20;
+        camera.position.y = -20;
+        camera.position.z = 20;
 
         tween = new TWEEN.Tween({
-            x: -300,
-            y: -180,
-            z: 150
+            x: -30.0,
+            y:  -0.0,
+            z:   1.4                 // Drivers eye view
         }).to({
-            x: +800,
-            y: -300,
-            z: 800
+            x: +80,
+            y: -10.0,
+            z: 10
         }, 4000)
             .repeat(Infinity)
             .delay(2000)
@@ -523,13 +560,13 @@ function BillBoardViewer() {
 
         scene.add(new THREE.AmbientLight(0x303030));
 
-        light = new THREE.SpotLight(0x606060, 1.5);
-        light.position.set(0, -2000, 4000);
+        light = new THREE.SpotLight(0x707070, 1.5);
+        light.position.set(-1000, -1000, 2000);
         light.castShadow = true;
         light.shadowCameraNear = 200;
         light.shadowCameraFar = camera.far;
-        light.shadowCameraFov = 50;
-        light.shadowBias = -0.00022;
+        light.shadowCameraFov = 5;
+        light.shadowBias = -0.000022;
         light.shadowDarkness = 0.5;
         light.shadowMapWidth = 2048;
         light.shadowMapHeight = 2048;
@@ -628,14 +665,14 @@ function BillBoardViewer() {
 
         makeInfo('RSM MEDIA');
 
-        //makeStats();
+        makeStats();
 
         renderer.domElement.addEventListener('mousemove', onDocumentMouseMove, false);
         renderer.domElement.addEventListener('mousedown', onDocumentMouseDown, false);
         renderer.domElement.addEventListener('mouseup', onDocumentMouseUp, false);
 
         window.addEventListener('resize', onWindowResize, false);
-        // makeGround();
+        //makeGround();
         // makeFog();
     }
 
@@ -652,7 +689,7 @@ function BillBoardViewer() {
             }
             vehicles[i].position.x = x;
             vehicles[i].position.z = z;
-            label.position.set(x, y, z + 100);
+            label.position.set(x, y, z + 3);
         }
 
         sun.lookAt(camera.position);
@@ -660,7 +697,7 @@ function BillBoardViewer() {
         label.lookAt(camera.position);
         label.up.set(0, 0, 1);
 
-        TWEEN.update();
+        //TWEEN.update();
 
         controls.update();
         camera.up.set(0, 0, 1);
