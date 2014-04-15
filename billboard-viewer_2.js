@@ -7,6 +7,7 @@
 /*global requestAnimationFrame:   false */
 /*global Stats:                   false */
 /*global XMLHttpRequest:          false */
+/*global console:                 false */
 
 
 function BillBoardViewer() {
@@ -108,8 +109,8 @@ function BillBoardViewer() {
             }
         };
 
-        this.getMesh = function() {
-            return(mesh);
+        this.getMesh = function () {
+            return (mesh);
         };
 
         nowPlaying = 0;
@@ -246,6 +247,8 @@ function BillBoardViewer() {
 
     function makeVehicles() {
         var geometry,
+            material,
+            box,
             vehicle,
             canvas,
             ctx,
@@ -254,11 +257,68 @@ function BillBoardViewer() {
             width,
             height;
 
-        // Two vehicles drag racing...
+
         // Dimensions of a BMW 5 Series Saloon. (meters) 
         length = 4.907;
         width = 1.86;
         height = 1.464;
+
+//-------------------------------------------
+        // right, left, top, bottom, front, back 
+
+        var rightTexture = THREE.ImageUtils.loadTexture('./images/bmw_side.png'),
+            leftTexture = THREE.ImageUtils.loadTexture('./images/bmw_side.png'),
+            topTexture = THREE.ImageUtils.loadTexture('./images/bmw_top.png'),
+            bottomTexture; // = THREE.ImageUtils.loadTexture('./images/sun.png'),
+            frontTexture = THREE.ImageUtils.loadTexture('./images/bmw_front.png'),
+            backTexture = THREE.ImageUtils.loadTexture('./images/bmw_back.png'),
+        materials = [];
+
+        materials.push(new THREE.MeshLambertMaterial({ map: backTexture,       // *
+                                                       //color: 0x28c0ec,
+                                                       alphaTest: 0.9,
+                                                       transparent: true}));
+
+        materials.push(new THREE.MeshLambertMaterial({ map: frontTexture,      // *
+                                                       //color: 0x28c0ec,
+                                                       alphaTest: 0.9,
+                                                       transparent: true}));
+
+        materials.push(new THREE.MeshLambertMaterial({ map: leftTexture,       // *
+                                                       //color: 0x28c0ec,
+                                                       alphaTest: 0.9,
+                                                       transparent: true}));
+
+        materials.push(new THREE.MeshLambertMaterial({ map: rightTexture,
+                                                       //color: 0x28c0ec,
+                                                       alphaTest: 0.9,
+                                                       transparent: true}));
+
+        materials.push(new THREE.MeshLambertMaterial({ map: topTexture,        // *
+                                                       //color: 0x28c0ec,
+                                                       alphaTest: 0.9,
+                                                       transparent: true}));
+
+        materials.push(new THREE.MeshLambertMaterial({ map: bottomTexture,
+                                                       //color: 0x28c0ec,
+                                                       alphaTest: 0.9,
+                                                       transparent: true}));
+
+
+        geometry = new THREE.BoxGeometry(length, width, height);
+//        material = new THREE.MeshLambertMaterial({ map: frontTexture,
+//                                                   color: 0x28c0ec,
+//                                                   transparent: true});
+
+        material = new THREE.MeshFaceMaterial(materials);
+
+        box = new THREE.Mesh(geometry, material);
+        box.position.z = height / 2;
+        scene.add(box);
+//-------------------------------------------
+
+
+        // Two vehicles drag racing...
 
         geometry = new THREE.BoxGeometry(length, width, height);
         vehicle = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({
@@ -269,7 +329,7 @@ function BillBoardViewer() {
         vehicle.position.y = 0;
         vehicle.position.z = height / 2;
         vehicle.velocity = {
-            x: 0.0 * KPH_2_MPS,
+            x: 0 * KPH_2_MPS,
             y: 0.0
         };
         vehicle.castShadow = true;
@@ -299,10 +359,10 @@ function BillBoardViewer() {
         canvas.height = 110;
 
         ctx = canvas.getContext("2d");
-        ctx.font="100px Verdana";
+        ctx.font = "100px Verdana";
         ctx.fillStyle = "#ff00aa";
         ctx.textBaseline = "top";
-        ctx.fillText('43km/h',0,0);
+        ctx.fillText('43km/h', 0, 0);
 
         xm = new THREE.MeshBasicMaterial({
             map: new THREE.Texture(canvas),
@@ -424,13 +484,13 @@ function BillBoardViewer() {
         roadWidth = laneWidth * 2;
         laneHeight = 1.5;
         sidewalkHeight = 1.0;
-        sidewalkWidth = roadWidth + 8.0; 
+        sidewalkWidth = roadWidth + 8.0;
         geometry = new THREE.BoxGeometry(roadLength, roadWidth, laneHeight);
         road = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({
             color: 0x758388
         }));
         road.receiveShadow = true;
-        road.position.z = - laneHeight / 2;
+        road.position.z = -laneHeight / 2;
         scene.add(road);
 
         // The sidewalk                
@@ -439,7 +499,7 @@ function BillBoardViewer() {
         sidewalk = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({
             color: 0xf4feef6
         }));
-        sidewalk.position.z = - (sidewalkHeight + laneHeight) / 2;
+        sidewalk.position.z = -(sidewalkHeight + laneHeight) / 2;
         sidewalk.receiveShadow = true;
         scene.add(sidewalk);
     }
